@@ -19,7 +19,9 @@ class Settings(BaseSettings):
     whatsapp_api_version: str = "v23.0"
     demo_pin: str = "1234"
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'vyapar.db').as_posix()}"
-    demo_date: str = ""
+    demo_date: str = ""  # YYYY-MM-DD; empty = today (IST)
+    demo_now: str = ""  # optional ISO datetime the demo clock starts at after reset
+    demo_customer_phone: str = ""  # Sunita ji's number for a live WhatsApp demo (must be allowlisted)
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     enable_scheduler: bool = True
 
