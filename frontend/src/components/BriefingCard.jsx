@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useApp, useLoad } from '../context/AppContext'
 import { ErrorNote, Loading } from './Card'
 
@@ -6,17 +5,6 @@ import { ErrorNote, Loading } from './Card'
 export default function BriefingCard() {
   const { api, say, soundbox } = useApp()
   const { data, error, loading } = useLoad(() => api.briefing())
-
-  useEffect(() => {
-    if (data?.cards?.length >= 3) {
-      api.display(
-        'AAJ KA HISAAB',
-        data.cards[0].value,
-        'Kal Ki Bikri',
-        `Due: ${data.cards[1].value} | Udh: ${data.cards[2].value}`,
-      ).catch(() => {})
-    }
-  }, [data, api])
 
   function playBriefing() {
     if (!data) return

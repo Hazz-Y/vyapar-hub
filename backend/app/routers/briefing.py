@@ -12,9 +12,7 @@ router = APIRouter(tags=["briefing"])
 @router.get("/briefing/today")
 def briefing_today(session: SessionDep, merchant_id: MerchantId = 1) -> dict:
     m = get_merchant(session, merchant_id)
-    b = build_briefing(session, m, clock.today(), clock.now(), clock.demo_start())
-    display_from_speech(b.get("spoken_text", ""))
-    return b
+    return build_briefing(session, m, clock.today(), clock.now(), clock.demo_start())
 
 
 @router.get("/soundbox/events")

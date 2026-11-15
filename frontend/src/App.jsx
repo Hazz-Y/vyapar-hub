@@ -50,12 +50,6 @@ function Shell() {
               key={n.to}
               to={n.to}
               end={n.to === '/'}
-              onClick={() => {
-                if (n.to === '/cash') api.display('CASH RADAR', 'Rs 15,586', 'Current Balance', 'Buffer: Rs 5,000').catch(() => {})
-                else if (n.to === '/udhaar') api.display('UDHAAR KHATA', 'Rs 15,420', '10 Open Entries', 'Due Today: Rs 1,540').catch(() => {})
-                else if (n.to === '/suppliers') api.display('SUPPLIERS', 'Rs 35,800', 'Sharma Milk, Agarwal', '2 Bills Pending').catch(() => {})
-                else if (n.to === '/') api.display('AAJ KA HISAAB', 'Rs 16,408', 'Kal Ki Bikri', 'Due: Rs 13,800').catch(() => {})
-              }}
               className={({ isActive }) =>
                 `flex flex-1 flex-col items-center py-2.5 text-[11px] font-medium transition-colors ${
                   isActive ? 'text-[#00B9F1]' : 'text-slate-500 hover:text-slate-700'
