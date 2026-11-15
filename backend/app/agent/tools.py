@@ -46,6 +46,12 @@ class ToolContext:
         self.actions.append(pa)
         return action_out(pa)
 
+    def auto_execute_last(self) -> dict | None:
+        """If the merchant set this agent to auto (messages only), the executor runs it now."""
+        from app.services.executor import auto_approve
+
+        return auto_approve(self.session, self.actions[-1], self.now)
+
 
 @dataclass
 class Tool:
@@ -309,6 +315,10 @@ def draft_udhaar_reminder(ctx: ToolContext, a: DraftReminderIn) -> dict:
     payload = reminder_payload(ctx, u, c)
     readback = f"{payload['recipient']} ko {rupees(u.amount)} ka reminder UPI link ke saath bhejna hai. Sahi hai?"
     action = ctx.draft("udhaar", "send_reminder", payload, readback)
+    auto = ctx.auto_execute_last()
+    if auto:
+        return {"speak": auto["confirmation_text"] + " (Auto mode)", "pending_action_id": action["id"],
+                "needs_approval": False, "auto_executed": True, "message_preview": payload["body"]}
     return {"speak": readback, "pending_action_id": action["id"], "needs_approval": True,
             "message_preview": payload["body"]}
 
@@ -335,6 +345,11 @@ def draft_winback(ctx: ToolContext, a: DraftWinbackIn) -> dict:
     action = ctx.draft("growth", "send_winback", {
         "customer_ids": [m["customer_id"] for m in messages], "messages": messages, "count": n,
         "recipient": f"{n} grahak", "discount_pct": a.discount_pct, "skipped_not_opted_in": skipped}, readback)
+    auto = ctx.auto_execute_last()
+    if auto:
+        return {"speak": auto["confirmation_text"] + " (Auto mode)", "pending_action_id": action["id"],
+                "needs_approval": False, "auto_executed": True, "recipients": n,
+                "skipped_not_opted_in": skipped, "message_preview": messages[0]["body"]}
     return {"speak": readback, "pending_action_id": action["id"], "needs_approval": True, "recipients": n,
             "skipped_not_opted_in": skipped, "message_preview": messages[0]["body"]}
 

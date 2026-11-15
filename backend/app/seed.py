@@ -298,7 +298,7 @@ class Builder:
             language=p.language, upi_vpa=p.vpa, cash_buffer=p.buffer,
             opening_balance=p.opening_balance, opening_time=p.opening_time))
         self.rows["settings"].append(dict(
-            merchant_id=mid, autonomy_udhaar="suggest", autonomy_growth="suggest",
+            merchant_id=mid, autonomy_udhaar="auto" if p is RAMESH else "suggest", autonomy_growth="suggest",
             autonomy_supplier="suggest", autonomy_cash="suggest", language=p.language))
 
         days = [self.demo - timedelta(days=HISTORY_DAYS - i) for i in range(HISTORY_DAYS)]

@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from app.config import get_settings
 from app.db import get_engine, init_db
 from app.models import Merchant
-from app.routers import agent, cash, core, demo, sales, suppliers, udhaar, voice
+from app.routers import actions, agent, briefing, cash, core, demo, growth, sales, suppliers, udhaar, voice
 
 
 @asynccontextmanager
@@ -21,10 +21,16 @@ async def lifespan(_app: FastAPI):
 
         reset_demo()
     if get_settings().enable_scheduler:  # background jobs (off in tests)
+        from app import scheduler
         from app.services.demo import warm_up
 
         threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
+        scheduler.start()
     yield
+    if get_settings().enable_scheduler:
+        from app import scheduler
+
+        scheduler.stop()
 
 
 settings = get_settings()
@@ -36,8 +42,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-for r in (core.router, sales.router, cash.router, suppliers.router, udhaar.router, agent.router, voice.router,
-          demo.router):
+for r in (core.router, sales.router, cash.router, suppliers.router, udhaar.router, growth.router, briefing.router,
+          agent.router, voice.router, actions.router, demo.router):
     app.include_router(r)
 
 

@@ -50,3 +50,17 @@ def udhaar_create(body: UdhaarCreate, session: SessionDep, merchant_id: Merchant
         session.commit()
     u, created = create_udhaar(session, merchant_id, c.id, body.amount, body.due_date, clock.now(), body.note)
     return {"created": created, "entry": udhaar_row(u, c, clock.today())}
+
+
+@router.post("/udhaar/{udhaar_id}/remind")
+def udhaar_remind(udhaar_id: int, session: SessionDep, merchant_id: MerchantId = 1) -> dict:
+    """Draft a reminder (sent at once if the udhaar agent is in auto mode)."""
+    from app.agent.tools import DraftReminderIn, draft_udhaar_reminder
+    from app.routers.agent import make_context
+    from app.services.actions import action_out
+
+    ctx = make_context(session, merchant_id)
+    r = draft_udhaar_reminder(ctx, DraftReminderIn(udhaar_id=udhaar_id))
+    if "error" in r:
+        raise HTTPException(422, r["speak"])
+    return {**r, "pending_actions": [action_out(a) for a in ctx.actions]}

@@ -91,6 +91,8 @@ class PendingAction(SQLModel, table=True):
     created_at: NaiveDatetime
     executed_at: Optional[NaiveDatetime] = None
     result_text: Optional[str] = None
+    approved_by: Optional[str] = None  # "pin" or "auto" (autonomy setting; never for payments)
+    pin_failures: int = 0
 
 
 class MessageLog(SQLModel, table=True):
@@ -112,6 +114,15 @@ class Settings(SQLModel, table=True):
     autonomy_supplier: str = "suggest"  # payments always need approval regardless
     autonomy_cash: str = "suggest"  # reschedules always need approval regardless
     language: str = "hi"
+
+
+class SoundboxEvent(SQLModel, table=True):
+    """Announcements for the (simulated) Paytm Soundbox: payments received, approved actions, briefing."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    merchant_id: int = Field(foreign_key="merchant.id", index=True)
+    kind: str  # payment / action / briefing / reminder
+    text: str
+    created_at: NaiveDatetime
 
 
 class AppState(SQLModel, table=True):

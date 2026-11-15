@@ -27,9 +27,10 @@ def test_merchants_and_customers(client):
 
 
 def test_settings_roundtrip(client, fresh_db):
-    assert client.get("/settings").json()["autonomy_udhaar"] == "suggest"
-    r = client.put("/settings", json={"autonomy_udhaar": "auto"})
-    assert r.status_code == 200 and r.json()["autonomy_udhaar"] == "auto"
+    s = client.get("/settings").json()
+    assert s["autonomy_udhaar"] == "auto" and s["autonomy_growth"] == "suggest"  # demo defaults
+    r = client.put("/settings", json={"autonomy_udhaar": "suggest"})
+    assert r.status_code == 200 and r.json()["autonomy_udhaar"] == "suggest"
     assert client.put("/settings", json={"autonomy_udhaar": "yolo"}).status_code == 422
 
 
