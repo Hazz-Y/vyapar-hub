@@ -29,6 +29,19 @@ function Shell() {
     <div className="flex min-h-screen flex-col items-center justify-start bg-slate-100 lg:flex-row lg:items-start lg:justify-center lg:gap-6 lg:py-8 lg:px-4">
       {/* Phone frame */}
       <div className="relative flex h-dvh w-full max-w-[390px] flex-col overflow-hidden bg-slate-50 shadow-none lg:h-[812px] lg:max-h-[812px] lg:rounded-[2.5rem] lg:border-[10px] lg:border-slate-800 lg:shadow-2xl">
+        {/* Top App Header with Paytm Logo */}
+        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 shrink-0">
+          <div className="flex items-center gap-2">
+            <img src="/paytm-logo.png" alt="Paytm" className="h-6 w-auto object-contain" />
+            <span className="rounded bg-[#00B9F1]/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-navy uppercase">
+              Vyapar Hub
+            </span>
+          </div>
+          <span className="text-[11px] font-medium text-slate-500">
+            Kirana Store
+          </span>
+        </header>
+
         <StatusBar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
@@ -81,9 +94,12 @@ function Shell() {
       <aside className={`${DEMO_MODE ? 'order-first flex w-full justify-center p-2 lg:order-none lg:p-0' : 'hidden'} shrink-0 lg:block lg:w-72 lg:space-y-4`}>
         {DEMO_MODE && <DemoBar />}
         <div className="hidden rounded-2xl bg-slate-900 p-4 lg:block">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            Paytm Soundbox
-          </p>
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Paytm Soundbox
+            </p>
+            <img src="/paytm-logo.png" alt="Paytm" className="h-4 w-auto brightness-0 invert opacity-80" />
+          </div>
           <Soundbox />
         </div>
         <div className="hidden lg:block">

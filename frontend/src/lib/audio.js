@@ -10,6 +10,40 @@ export function stopAudio() {
   if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel()
 }
 
+// Play the iconic Paytm payment tune (MP3)
+export function playPaytmTune() {
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') {
+    return Promise.resolve()
+  }
+  if (window.navigator?.userAgent?.includes('jsdom')) {
+    return Promise.resolve()
+  }
+  return new Promise((resolve) => {
+    try {
+      const tune = new Audio('/paytm_payment_tune.mp3')
+      let done = false
+      const finish = () => {
+        if (!done) {
+          done = true
+          resolve()
+        }
+      }
+      tune.onended = finish
+      tune.onerror = finish
+      const p = tune.play()
+      if (p && typeof p.then === 'function') {
+        p.catch(finish)
+        // 4-second safety timeout so it never hangs in live browser
+        setTimeout(finish, 4000)
+      } else {
+        resolve()
+      }
+    } catch {
+      resolve()
+    }
+  })
+}
+
 function speakWithBrowser(text) {
   return new Promise((resolve) => {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null

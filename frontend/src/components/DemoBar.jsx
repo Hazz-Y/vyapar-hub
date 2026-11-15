@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useApp, useLoad } from '../context/AppContext'
+import { playPaytmTune } from '../lib/audio'
 
 export const DEMO_MODE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1'
 
@@ -47,6 +48,7 @@ export default function DemoBar() {
 
   const pay = () =>
     run('pay', async () => {
+      await playPaytmTune()
       const r = await api.simulatePayment(SUNITA.amount, SUNITA.name)
       say({ text: r.soundbox_text, eventId: r.soundbox_event_id })
       refresh()

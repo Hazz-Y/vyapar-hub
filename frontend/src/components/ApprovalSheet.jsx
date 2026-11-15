@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { KIND_LABELS, rupees, shortDate } from '../lib/format'
+import { playPaytmTune } from '../lib/audio'
 import MessagePreview from './MessagePreview'
 
 const PIN_LENGTH = 4
@@ -157,6 +158,7 @@ export function ApprovalHost({ useAppHook }) {
       action={action}
       onApprove={async (pin) => {
         const r = await api.approve(action.id, pin)
+        await playPaytmTune()
         refresh()
         if (r.soundbox_text) say({ text: r.soundbox_text, audio: r.audio, eventId: r.soundbox_event_id })
         return r

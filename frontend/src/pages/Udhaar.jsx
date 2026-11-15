@@ -4,6 +4,7 @@ import { Button, ErrorNote, Loading } from '../components/Card'
 import MessagePreview from '../components/MessagePreview'
 import AssistantPanel from '../components/AssistantPanel'
 import { rupees, shortDate, STATUS_CHIP } from '../lib/format'
+import { playPaytmTune } from '../lib/audio'
 
 const UDHAAR_PHRASES = [
   'Sunita ji ne 650 ka udhaar liya, Friday tak denge',
@@ -106,6 +107,7 @@ export default function Udhaar() {
   }
 
   async function handleSimulate(entry) {
+    await playPaytmTune()
     const r = await api.simulatePayment(entry.amount, entry.customer_name || entry.name)
     if (r.soundbox_text) say({ text: r.soundbox_text, eventId: r.soundbox_event_id })
     reload()
