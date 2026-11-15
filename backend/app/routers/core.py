@@ -77,3 +77,17 @@ def _settings_out(row: Settings) -> dict:
 def messages(session: SessionDep, merchant_id: MerchantId = 1, limit: int = 50) -> list[MessageLog]:
     return list(session.exec(select(MessageLog).where(MessageLog.merchant_id == merchant_id)
                              .order_by(MessageLog.id.desc()).limit(limit)).all())
+
+
+class DisplayUpdateRequest(BaseModel):
+    status: str = "PAYTM SOUNDBOX"
+    amount: str = "Rs --"
+    line1: str = ""
+    line2: str = ""
+
+
+@router.post("/hardware/display")
+def update_hardware_display(body: DisplayUpdateRequest) -> dict:
+    from app.services.hardware import send_raw
+    send_raw(body.status, body.amount, body.line1, body.line2)
+    return {"status": "ok"}
