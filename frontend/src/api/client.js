@@ -77,7 +77,5 @@ export function createApi(merchantId = 1) {
     demoState: () => request('/demo/state', { params: m }),
     display: (status, amount, line1, line2) =>
       request('/hardware/display', { method: 'POST', body: { status, amount, line1, line2 } }),
-    setSpeaker: (speaking, text = '') =>
-      request('/hardware/speaker', { method: 'POST', body: { speaking, text } }),
   }
 }

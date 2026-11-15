@@ -50,16 +50,6 @@ def send_raw(status: str, amount: str, line1: str, line2: str) -> None:
     _queue.put(line)
 
 
-def set_speaker_active(speaking: bool, text: str = "") -> None:
-    """Notify Arduino whether the speaker is actively talking or idle."""
-    if speaking:
-        _queue.put("SPEAK_START\n")
-        if text:
-            display_from_speech(text)
-    else:
-        _queue.put("SPEAK_STOP\n")
-
-
 def display_from_speech(text: str) -> None:
     """Dynamically parse any text spoken by the Soundbox / Assistant and display the money context."""
     if not text:

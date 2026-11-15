@@ -31,13 +31,11 @@ export function AppProvider({ children, merchantId = 1, api: injectedApi, pollMs
       }
       chain.current = chain.current.then(async () => {
         setSoundbox({ text, playing: true })
-        api.setSpeaker?.(true, text)?.catch?.(() => {})
         try {
           const a = audio || (await api.speak(text).catch(() => null))
           await playSpeech(a, text)
         } finally {
           setSoundbox({ text, playing: false })
-          api.setSpeaker?.(false)?.catch?.(() => {})
         }
       })
       return chain.current

@@ -91,15 +91,3 @@ def update_hardware_display(body: DisplayUpdateRequest) -> dict:
     from app.services.hardware import send_raw
     send_raw(body.status, body.amount, body.line1, body.line2)
     return {"status": "ok"}
-
-
-class SpeakerStateRequest(BaseModel):
-    speaking: bool
-    text: str = ""
-
-
-@router.post("/hardware/speaker")
-def update_hardware_speaker(body: SpeakerStateRequest) -> dict:
-    from app.services.hardware import set_speaker_active
-    set_speaker_active(body.speaking, body.text)
-    return {"status": "ok", "speaking": body.speaking}
