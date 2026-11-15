@@ -13,9 +13,7 @@ const SUP_PHRASES = [
 function PayableRow({ p, onPay, onReschedule }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
-  const daysUntil = p.due_date
-    ? Math.round((new Date(`${p.due_date}T00:00:00`) - new Date()) / 86400000)
-    : null
+  const daysUntil = p.days_to_due ?? null
 
   async function pay() {
     setBusy(true)
@@ -35,7 +33,7 @@ function PayableRow({ p, onPay, onReschedule }) {
     <div className={`rounded-2xl p-3 ring-1 ${urgent ? 'bg-amber-50 ring-amber-200' : 'bg-white ring-slate-200'}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-navy truncate">{p.supplier_name || p.contact_name || '—'}</p>
+          <p className="text-[14px] font-semibold text-navy truncate">{p.supplier}</p>
           <p className="text-[12px] text-slate-500">
             Due: {p.due_date ? shortDate(p.due_date) : '—'}
             {daysUntil !== null && (
@@ -62,12 +60,16 @@ function PayableRow({ p, onPay, onReschedule }) {
 }
 
 export default function Suppliers() {
-  const { api, requestApproval } = useApp()
+  const { api, requestApproval, status } = useApp()
+  const [showAll, setShowAll] = useState(false)
   const { data: payables, loading, error } = useLoad(() => api.payables('upcoming'))
   const { data: matching } = useLoad(() => api.matching())
   const [matchOpen, setMatchOpen] = useState(false)
 
-  const currentMonth = new Date().toISOString().slice(0, 7)
+  // GST export defaults to the last full month on the demo clock.
+  const demoNow = status?.now ? new Date(status.now) : new Date()
+  const lastMonth = new Date(demoNow.getFullYear(), demoNow.getMonth() - 1, 1)
+  const gstMonth = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`
 
   async function handlePay(id) {
     const r = await api.draftPay(id)
@@ -80,33 +82,22 @@ export default function Suppliers() {
   }
 
   const upcoming = (payables || []).filter((p) => p.status !== 'paid')
-  const totalDue = upcoming.reduce((s, p) => s + (p.amount || 0), 0)
+  const visible = showAll ? upcoming : upcoming.slice(0, 8)
 
   return (
     <div className="space-y-4 p-4 pb-6">
       <h1 className="text-[17px] font-semibold text-navy">Suppliers</h1>
 
-      {/* Summary tile */}
-      <div className="rounded-2xl bg-slate-50 p-3 flex gap-4">
-        <div>
-          <p className="text-[11px] text-slate-500">Upcoming payments</p>
-          <p className="text-[18px] font-semibold text-navy">{rupees(totalDue)}</p>
-        </div>
-        <div className="border-l border-slate-200 pl-4">
-          <p className="text-[11px] text-slate-500">Bills due</p>
-          <p className="text-[18px] font-semibold text-navy">{upcoming.length}</p>
-        </div>
-      </div>
 
       {/* Payables list */}
-      <Card title="Upcoming Payments">
+      <Card title={`Aane wale bills (${upcoming.length})`}>
         {loading && !payables && <Loading />}
         <ErrorNote error={error} />
         <div className="space-y-3 mt-2">
           {upcoming.length === 0 && !loading && (
             <p className="py-4 text-center text-sm text-slate-400">Koi pending payment nahi.</p>
           )}
-          {upcoming.map((p) => (
+          {visible.map((p) => (
             <PayableRow
               key={p.id}
               p={p}
@@ -114,6 +105,11 @@ export default function Suppliers() {
               onReschedule={handleReschedule}
             />
           ))}
+          {upcoming.length > visible.length && (
+            <button onClick={() => setShowAll(true)} className="text-[12px] font-semibold text-sky-700">
+              Sab {upcoming.length} dikhao
+            </button>
+          )}
         </div>
       </Card>
 
@@ -121,11 +117,11 @@ export default function Suppliers() {
       <Card title="GST Export">
         <p className="text-[12px] text-slate-600 mb-2">Monthly GSTR-ready CSV download</p>
         <a
-          href={api.gstExportUrl(currentMonth)}
+          href={api.gstExportUrl(gstMonth)}
           download
           className="inline-flex items-center gap-1.5 rounded-full bg-navy px-4 py-2 text-sm font-semibold text-white"
         >
-          ⬇ GST CSV — {currentMonth}
+          ⬇ GST CSV — {gstMonth}
         </a>
       </Card>
 
@@ -136,7 +132,7 @@ export default function Suppliers() {
             onClick={() => setMatchOpen((o) => !o)}
             className="text-[12px] font-semibold text-sky-700 hover:underline"
           >
-            {matchOpen ? '▲ Hide' : `▼ Show (${matching.matched || 0} matched)`}
+            {matchOpen ? '▲ Hide' : `▼ Show (${matching.matched_fuzzy + matching.matched_llm} of ${matching.distinct_counterparties} names matched)`}
           </button>
           {matchOpen && (
             <div className="mt-2 overflow-x-auto">
@@ -149,17 +145,17 @@ export default function Suppliers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(matching.results || []).slice(0, 20).map((row, i) => (
+                  {matching.rows.slice(0, 20).map((row, i) => (
                     <tr key={i} className="border-b border-slate-100 last:border-0">
-                      <td className="px-2 py-1 text-slate-700 max-w-[120px] truncate">{row.counterparty || row.note || '—'}</td>
-                      <td className="px-2 py-1 text-navy font-medium">{row.supplier_name || '—'}</td>
-                      <td className="px-2 py-1 text-right text-slate-500">{row.score != null ? row.score : '—'}</td>
+                      <td className="px-2 py-1 text-slate-700 max-w-[120px] truncate">{row.counterparty}</td>
+                      <td className="px-2 py-1 text-navy font-medium">{row.supplier || '—'}</td>
+                      <td className="px-2 py-1 text-right text-slate-500">{row.method === 'llm' ? 'AI' : row.score ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               {matching.unmatched > 0 && (
-                <p className="mt-2 text-[11px] text-amber-700">{matching.unmatched} transactions unmatched</p>
+                <p className="mt-2 text-[11px] text-amber-700">{matching.unmatched} names unmatched</p>
               )}
             </div>
           )}

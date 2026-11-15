@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     demo_now: str = ""  # optional ISO datetime the demo clock starts at after reset
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     enable_scheduler: bool = True
+    enable_hardware: bool = False  # Arduino display over USB serial; local demo rig only
 
     @property
     def cors_list(self) -> list[str]:

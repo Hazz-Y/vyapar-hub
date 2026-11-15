@@ -26,7 +26,8 @@ async def lifespan(_app: FastAPI):
         from app.services.hardware import start_hardware_service
 
         threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
-        start_hardware_service()
+        if get_settings().enable_hardware:
+            start_hardware_service()
         scheduler.start()
     yield
     if get_settings().enable_scheduler:

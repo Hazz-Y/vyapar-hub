@@ -17,7 +17,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_queue: queue.Queue[str] = queue.Queue()
+_queue: queue.Queue[str] = queue.Queue(maxsize=50)
 _running = False
 _thread: Optional[threading.Thread] = None
 
@@ -46,8 +46,14 @@ def _format_line(status: str, amount: str, line1: str, line2: str) -> str:
 
 def send_raw(status: str, amount: str, line1: str, line2: str) -> None:
     """Queue formatted message for the serial worker."""
-    line = _format_line(status, amount, line1, line2)
-    _queue.put(line)
+    from app.config import get_settings
+
+    if not get_settings().enable_hardware:
+        return
+    try:
+        _queue.put_nowait(_format_line(status, amount, line1, line2))
+    except queue.Full:  # display unplugged: drop rather than grow without bound
+        pass
 
 
 def display_from_speech(text: str) -> None:
@@ -111,7 +117,10 @@ def _serial_worker():
                 ser.open()
                 print(f"[ARDUINO] Connected to Arduino on {port}", flush=True)
                 # Send ready status with latest sales figure on connection
-                _queue.put("PAYTM SOUNDBOX|Rs 16,408|Vyapar Hub Active|Ready for actions\n")
+                try:
+                    _queue.put_nowait("PAYTM SOUNDBOX|Rs 16,408|Vyapar Hub Active|Ready for actions\n")
+                except queue.Full:
+                    pass
 
             # Wait for items from the queue
             try:
@@ -155,4 +164,7 @@ def stop_hardware_service():
     """Stop the background worker."""
     global _running
     _running = False
-    _queue.put("")  # unblock get()
+    try:
+        _queue.put_nowait("")  # unblock get()
+    except queue.Full:
+        pass

@@ -32,7 +32,7 @@ function Toggle({ label, description, value, onChange, disabled }) {
 }
 
 export default function Settings() {
-  const { api, reloadStatus } = useApp()
+  const { api, reloadStatus, status } = useApp()
   const { data: settings, loading, error, reload } = useLoad(() => api.settings())
   const { data: merchant } = useLoad(() => api.merchant())
 
@@ -72,9 +72,6 @@ export default function Settings() {
               <dd className="font-medium text-navy">{merchant.upi_vpa || '—'}</dd>
             </div>
           </dl>
-          <p className="mt-3 text-[11px] text-slate-400">
-            Bhasha badalne ke liye assistant se poochhiye: "language ko English kar do"
-          </p>
         </Card>
       )}
 
@@ -98,12 +95,12 @@ export default function Settings() {
           />
           <Toggle
             label="Supplier payments"
-            description="Real money — always needs PIN"
+            description="Paisa hilta hai (demo) — hamesha PIN"
             disabled
           />
           <Toggle
             label="Cash Radar rescheduling"
-            description="Real money — always needs PIN"
+            description="Paisa hilta hai (demo) — hamesha PIN"
             disabled
           />
         </Card>
@@ -115,7 +112,7 @@ export default function Settings() {
           <p>🏷 Version: Demo · Hackathon build</p>
           <p>⚠ All data is synthetic (seeded). No real transactions.</p>
           <p>🔒 Demo PIN: 1234. No real UPI PIN is ever asked.</p>
-          <p>🤖 AI: {settings ? (settings.language || 'Hinglish') : '…'} mode</p>
+          <p>🤖 AI: {status ? `${status.llm}${status.llm_model ? ` (${status.llm_model})` : ''}` : '…'}</p>
         </div>
       </Card>
     </div>

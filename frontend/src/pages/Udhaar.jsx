@@ -14,8 +14,9 @@ const UDHAAR_PHRASES = [
 
 const EMPTY_FORM = { customer_name: '', amount: '', phone: '', due_date: '' }
 
-function StatusChip({ status }) {
-  const chip = STATUS_CHIP[status] || STATUS_CHIP.open
+function StatusChip({ entry }) {
+  const key = entry.status !== 'settled' && entry.overdue ? 'overdue' : entry.status
+  const chip = STATUS_CHIP[key] || STATUS_CHIP.open
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${chip.cls}`}>
       {chip.label}
@@ -33,7 +34,7 @@ function UdhaarRow({ entry, onRemind, onSimulate }) {
     setErr(null)
     try {
       const r = await onRemind(entry.id)
-      if (r?.message_preview) setPreview(r.message_preview)
+      if (r?.message_preview) setPreview({ body: r.message_preview, to: r.pending_actions?.[0]?.payload?.to })
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -57,7 +58,7 @@ function UdhaarRow({ entry, onRemind, onSimulate }) {
     <div className="rounded-2xl bg-white p-3 ring-1 ring-slate-200 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold text-navy">{entry.customer_name || entry.name || '—'}</p>
+          <p className="text-[14px] font-semibold text-navy">{entry.display_name || entry.customer_name}</p>
           <p className="text-[12px] text-slate-500">
             Due: {entry.due_date ? shortDate(entry.due_date) : '—'}
             {entry.phone && <span className="ml-2">{entry.phone}</span>}
@@ -65,7 +66,7 @@ function UdhaarRow({ entry, onRemind, onSimulate }) {
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <p className="text-[16px] font-semibold text-navy">{rupees(entry.amount)}</p>
-          <StatusChip status={entry.status} />
+          <StatusChip entry={entry} />
         </div>
       </div>
 
@@ -94,10 +95,10 @@ export default function Udhaar() {
   const [addBusy, setAddBusy] = useState(false)
   const [addErr, setAddErr] = useState(null)
 
-  const entries = data || []
-  const openEntries = entries.filter((e) => e.status !== 'settled')
-  const totalOpen = openEntries.reduce((s, e) => s + (e.amount || 0), 0)
-  const overdueCount = openEntries.filter((e) => e.status === 'overdue').length
+  const { data: messages } = useLoad(() => api.messages())
+  const entries = data?.entries || []
+  const totals = data?.totals
+  const dueCount = totals?.due_today_or_overdue_count || 0
 
   async function handleRemind(id) {
     const r = await api.remind(id)
@@ -123,7 +124,7 @@ export default function Udhaar() {
       await api.addUdhaar({
         customer_name: form.customer_name.trim(),
         amount: Number(form.amount),
-        due_date: form.due_date || null,
+        due_date: form.due_date,
         phone: form.phone.trim() || null,
       })
       setForm(EMPTY_FORM)
@@ -149,14 +150,14 @@ export default function Udhaar() {
       <div className="flex gap-3">
         <div className="flex-1 rounded-2xl bg-amber-50 p-3">
           <p className="text-[11px] text-amber-700">Total baaki</p>
-          <p className="text-[18px] font-semibold text-navy mt-0.5">{rupees(totalOpen)}</p>
-          <p className="text-[11px] text-slate-500">{openEntries.length} log</p>
+          <p className="text-[18px] font-semibold text-navy mt-0.5">{rupees(totals?.open_total)}</p>
+          <p className="text-[11px] text-slate-500">{totals?.open_count ?? 0} log</p>
         </div>
-        {overdueCount > 0 && (
+        {dueCount > 0 && (
           <div className="flex-1 rounded-2xl bg-red-50 p-3">
-            <p className="text-[11px] text-[#d03b3b]">Overdue</p>
-            <p className="text-[18px] font-semibold text-[#d03b3b] mt-0.5">{overdueCount}</p>
-            <p className="text-[11px] text-slate-500">reminder bhejein</p>
+            <p className="text-[11px] text-[#d03b3b]">⚠ Aaj ya pehle due</p>
+            <p className="text-[18px] font-semibold text-[#d03b3b] mt-0.5">{rupees(totals.due_today_or_overdue_total)}</p>
+            <p className="text-[11px] text-slate-500">{dueCount} log · reminder bhejein</p>
           </div>
         )}
       </div>
@@ -189,6 +190,7 @@ export default function Udhaar() {
             className="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-sky"
           />
           <input
+            required
             type="date"
             placeholder="Due date"
             value={form.due_date}
@@ -219,6 +221,15 @@ export default function Udhaar() {
           />
         ))}
       </div>
+
+      {messages?.length > 0 && (
+        <section className="space-y-2" aria-label="Sent message previews">
+          <h2 className="text-[14px] font-semibold text-navy">Bheje gaye reminders (preview)</h2>
+          {messages.slice(0, 5).map((m) => (
+            <MessagePreview key={m.id} body={m.body} to={m.to} time={m.created_at.slice(11, 16)} compact />
+          ))}
+        </section>
+      )}
 
       <AssistantPanel suggestions={UDHAAR_PHRASES} title="Udhaar ke baare mein poochhiye" />
     </div>
