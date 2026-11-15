@@ -18,7 +18,7 @@ from app.seed import hash_payer
 from app.services.actions import MESSAGE_KINDS, MONEY_KINDS
 from app.services.customers import display_name
 from app.services.fmt import fmt_date, rupees
-from app.services.hardware import send_to_display
+from app.services.hardware import send_raw
 from app.services.messaging import announce, send_message
 from app.services.udhaar import OPEN_STATUSES, create_udhaar
 
@@ -119,7 +119,7 @@ def _pay_supplier(session: Session, pa: PendingAction, now: datetime) -> tuple[s
         if payable and payable.status in ("scheduled", "rescheduled"):
             payable.status, payable.paid_txn_id = "paid", txn.id
             session.add(payable)
-    send_to_display(p["amount"], sup.name, txn.id)
+    send_raw("PAYMENT SENT", f"Rs {p['amount']}", sup.name, f"Approved PIN · TXN: {txn.id}")
     amt = rupees(p["amount"])
     return (f"{amt} {sup.name} ko bhej diye (demo, koi asli paisa nahi gaya).",
             f"{sup.name} ko {int(p['amount'])} rupaye bheje gaye")
