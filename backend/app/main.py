@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.config import get_settings
 from app.db import get_engine, init_db
 from app.models import Merchant
-from app.routers import core, demo, sales, suppliers, udhaar
+from app.routers import cash, core, demo, sales, suppliers, udhaar
 
 
 @asynccontextmanager
@@ -31,7 +31,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-for r in (core.router, sales.router, suppliers.router, udhaar.router, demo.router):
+for r in (core.router, sales.router, cash.router, suppliers.router, udhaar.router, demo.router):
     app.include_router(r)
 
 

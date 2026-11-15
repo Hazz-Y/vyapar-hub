@@ -206,8 +206,8 @@ SUNITA = ("Sunita", "Sunita Verma", 650)
 
 # Ramesh's end-of-day pessimistic balance targets for horizon days 0..4; day 5 lands below buffer.
 RAMESH_PRE_TARGETS = [15_800, 14_600, 16_000, 14_900, 15_400]
-RAMESH_BREACH_BELOW_BUFFER = 12_000
-RAMESH_RECOVERY_PER_DAY = 7_000
+RAMESH_BREACH_BELOW_BUFFER = 14_000
+RAMESH_RECOVERY_PER_DAY = 8_000
 PESSIMISTIC_FACTOR = 0.8
 
 
