@@ -92,6 +92,10 @@ def test_tool_schemas_are_objects():
     ("अग्रवाल का पेमेंट 7 तारीख को कर दो", "draft_reschedule_payable", {"day_of_month": 7}),
     ("Sunita ji ne 650 ka udhaar liya, Friday tak denge", "log_udhaar", {"amount": 650, "due": "friday"}),
     ("सुनीता जी ने ६५० का उधार लिया, शुक्रवार तक देंगे", "log_udhaar", {"amount": 650, "due": "friday"}),
+    # exactly as Saaras v3 codemix returns it: danda, mixed script, number words
+    ("सुनीता जी ने छः सौ पचास का उधार लिया, Friday तक देंगे।", "log_udhaar", {"amount": 650, "due": "friday"}),
+    ("अग्रवाल का payment 7 तारीख को कर दो।", "draft_reschedule_payable", {"day_of_month": 7}),
+    ("शर्मा जी को पाँच हज़ार भेजो।", "draft_supplier_payment", {"amount": 5000}),
     ("Sharma ji ko 5,000 bhejo", "draft_supplier_payment", {"amount": 5000}),
     ("Sunita ji ko reminder bhejo", "draft_udhaar_reminder", {}),
     ("subah ki report sunao", "get_morning_briefing", {}),

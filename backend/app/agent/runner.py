@@ -13,6 +13,7 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Any, Protocol
 
 from app.agent.prompts import system_prompt
@@ -21,6 +22,7 @@ from app.config import get_settings
 from app.models import Settings
 from app.services.actions import action_out
 from app.services.customers import DEVANAGARI_NAMES
+from app.services.numbers import words_to_digits
 
 MAX_TOOL_CALLS = 5
 DRAFT_TOOLS = {"draft_supplier_payment", "draft_reschedule_payable", "log_udhaar", "draft_udhaar_reminder",
@@ -67,11 +69,16 @@ class ChatClient:
         return LLMResponse(msg.content or "", calls)
 
 
+@lru_cache
+def _cached_client(api_key: str, base_url: str, model: str) -> ChatClient:
+    return ChatClient(api_key, base_url, model)  # reused: keeps the HTTPS connection warm between turns
+
+
 def client_from_settings() -> ChatClient | None:
     s = get_settings()
     if s.llm_mode == "fallback":
         return None
-    return ChatClient(s.llm_api_key, s.llm_base_url, s.llm_model)
+    return _cached_client(s.llm_api_key, s.llm_base_url, s.llm_model)
 
 
 # ---------------------------------------------------------------- number guard
@@ -116,7 +123,9 @@ _DEVANAGARI_WORDS = {
 def normalise_utterance(text: str) -> str:
     from app.services.dates import WEEKDAY_LOOKUP, WEEKDAYS
 
-    t = text.translate(_DEVANAGARI_DIGITS).lower()
+    # The danda (।, ॥) lies inside the Devanagari block: strip it before word mapping ("देंगे।" -> "देंगे").
+    t = re.sub(r"[।॥]", " ", text)
+    t = words_to_digits(t.translate(_DEVANAGARI_DIGITS)).lower()
     t = re.sub(r"(?<=\d),(?=\d)", "", t).replace("₹", " ")
 
     def map_word(m: re.Match) -> str:

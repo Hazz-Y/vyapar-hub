@@ -24,3 +24,33 @@ def reset_demo() -> dict:
     clock.set_now(start)
     clock.set_demo_start(d)
     return {"demo_date": d.isoformat(), "clock": start.isoformat(), "rows": counts}
+
+
+def warm_models() -> None:
+    """Train/cache each merchant's forecast so the first radar or voice turn is fast."""
+    from sqlmodel import Session, select
+
+    from app.models import Merchant
+    from app.services.forecast import get_model
+
+    with Session(get_engine()) as s:
+        for m in s.exec(select(Merchant)).all():
+            get_model(s, m.id, clock.today())
+
+
+def warm_connections() -> None:
+    """Open the LLM HTTPS connection with a free models-list call (no tokens), so turn 1 isn't cold."""
+    from app.agent.runner import client_from_settings
+
+    client = client_from_settings()
+    if client is None:
+        return
+    try:
+        client.client.models.list()
+    except Exception:
+        pass  # warm-up is best effort
+
+
+def warm_up() -> None:
+    warm_models()
+    warm_connections()

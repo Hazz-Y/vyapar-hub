@@ -233,22 +233,25 @@ def draft_reschedule_payable(ctx: ToolContext, a: DraftRescheduleIn) -> dict:
     after = ctx.radar({p.id: new_date})
     horizon_end = ctx.today + timedelta(days=HORIZON - 1)
     if before["flagged_days"] and not after["flagged_days"]:
-        impact = "Isse paise ki kami door ho jayegi."
+        impact = "Kami door ho jayegi."
         clears = True
     elif after["flagged_days"]:
-        impact = f"Dhyan dein: {after['shortfalls'][0]['date_text']} ko phir bhi kami rahegi."
+        impact = f"Phir bhi {after['shortfalls'][0]['date_text']} ko kami rahegi."
         clears = False
     else:
         impact, clears = "", False
-    if new_date > horizon_end:
-        impact = (impact + " Yeh tareekh 14 din ke forecast ke bahar hai.").strip()
-    readback = (f"{sup.name} ka {rupees(p.amount)} payment {fmt_date(p.due_date)} se {fmt_date(new_date)} "
-                f"ko karna hai. {impact} Sahi hai?").replace("  ", " ")
+    within = new_date <= horizon_end
+    note = None if within else "Nayi tareekh 14 din ke forecast ke bahar hai."  # shown on screen, not spoken
+    old = f"{p.due_date.day} {p.due_date.strftime('%b')}"
+    # Kept short: the spoken read-back length drives TTS latency.
+    readback = (f"{sup.name} ka {rupees(p.amount)} payment {old} se {fmt_date(new_date)} ko karna hai. "
+                f"{impact} Sahi hai?").replace("  ", " ")
     action = ctx.draft("supplier", "reschedule_payable", {
         "payable_id": p.id, "supplier": sup.name, "recipient": sup.name, "amount": p.amount,
-        "old_due_date": p.due_date.isoformat(), "new_due_date": new_date.isoformat()}, readback)
+        "old_due_date": p.due_date.isoformat(), "new_due_date": new_date.isoformat(), "clears_shortfall": clears,
+        "note": note}, readback)
     return {"speak": readback, "pending_action_id": action["id"], "needs_approval": True,
-            "clears_shortfall": clears, "new_date": fmt_date(new_date), "within_forecast": new_date <= horizon_end}
+            "clears_shortfall": clears, "new_date": fmt_date(new_date), "within_forecast": within, "note": note}
 
 
 class LogUdhaarIn(BaseModel):

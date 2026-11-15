@@ -1,3 +1,4 @@
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,7 +8,7 @@ from sqlmodel import Session, select
 from app.config import get_settings
 from app.db import get_engine, init_db
 from app.models import Merchant
-from app.routers import agent, cash, core, demo, sales, suppliers, udhaar
+from app.routers import agent, cash, core, demo, sales, suppliers, udhaar, voice
 
 
 @asynccontextmanager
@@ -19,6 +20,10 @@ async def lifespan(_app: FastAPI):
         from app.services.demo import reset_demo
 
         reset_demo()
+    if get_settings().enable_scheduler:  # background jobs (off in tests)
+        from app.services.demo import warm_up
+
+        threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
     yield
 
 
@@ -31,7 +36,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-for r in (core.router, sales.router, cash.router, suppliers.router, udhaar.router, agent.router, demo.router):
+for r in (core.router, sales.router, cash.router, suppliers.router, udhaar.router, agent.router, voice.router,
+          demo.router):
     app.include_router(r)
 
 
