@@ -6,6 +6,8 @@ it answers through a simulated Paytm Soundbox. It warns before cash runs short, 
 udhaar (credit) book and collects on it, untangles supplier bills, and wins back customers
 who have stopped coming. Nothing it suggests happens until the merchant approves it.
 
+**Demo video:** https://youtu.be/MNR-UB9328s
+
 **Live demo:** https://paytm-vypar-hub.vercel.app/?demo=1
 (the `?demo=1` flag adds the presenter controls; the backend is on Render's free plan, so
 the first request after a quiet spell can take about a minute while it wakes up)
@@ -67,7 +69,7 @@ for a real UPI PIN, and no real money moves.
 
 ### The 3-minute demo
 
-Open the live demo with `?demo=1` and press **Reset** first.
+Watch the recorded walkthrough at https://youtu.be/MNR-UB9328s, or open the live demo with `?demo=1` and press **Reset** first.
 
 1. **Briefing.** Press **Briefing**. The morning report plays on the Soundbox: yesterday's
    ₹16,408 in sales, 3% above a usual Saturday, today's bills and dues.
