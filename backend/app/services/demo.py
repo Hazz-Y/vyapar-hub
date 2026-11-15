@@ -22,4 +22,5 @@ def reset_demo() -> dict:
     counts = seed_all(get_engine(), d, s.demo_customer_phone)
     start = datetime.fromisoformat(s.demo_now) if s.demo_now else datetime.combine(d, DEMO_START_TIME)
     clock.set_now(start)
+    clock.set_demo_start(d)
     return {"demo_date": d.isoformat(), "clock": start.isoformat(), "rows": counts}

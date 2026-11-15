@@ -44,3 +44,18 @@ def now() -> datetime:
 
 def today() -> date:
     return now().date()
+
+
+def set_demo_start(d: date) -> None:
+    with Session(get_engine()) as s:
+        row = s.get(AppState, "demo_date") or AppState(key="demo_date", value="")
+        row.value = d.isoformat()
+        s.add(row)
+        s.commit()
+
+
+def demo_start() -> date:
+    """The seeded demo date (history ends the day before; balances start that morning)."""
+    with Session(get_engine()) as s:
+        row = s.get(AppState, "demo_date")
+    return date.fromisoformat(row.value) if row else today()
