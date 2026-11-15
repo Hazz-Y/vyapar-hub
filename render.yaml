@@ -1,0 +1,30 @@
+# Render Blueprint: the FastAPI backend. The SQLite demo DB lives on the instance's
+# ephemeral disk and is re-seeded on every boot (deterministic), so no database service is needed.
+services:
+  - type: web
+    name: vyapar-hub-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.14
+      - key: GROQ_API_KEY
+        sync: false # paste in the Render dashboard; never commit
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-120b
+      - key: SARVAM_TTS_SPEAKER
+        value: shubh
+      - key: DEMO_PIN
+        value: "1234" # mock PIN, shown in the UI; never a real UPI PIN
+      - key: CORS_ORIGINS
+        sync: false # e.g. https://vyapar-hub.vercel.app,http://localhost:5173
+      - key: ENABLE_SCHEDULER
+        value: "true"
+      - key: ENABLE_HARDWARE
+        value: "false" # no Arduino on a server
