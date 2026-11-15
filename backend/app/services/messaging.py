@@ -28,6 +28,11 @@ def announce(session: Session, merchant_id: int, kind: str, text: str, now: date
     session.add(ev)
     session.commit()
     session.refresh(ev)
+    try:
+        from app.services.hardware import display_from_speech
+        display_from_speech(text)
+    except Exception:
+        pass
     return ev
 
 

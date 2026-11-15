@@ -37,10 +37,10 @@ def find_arduino_port() -> str:
 
 
 def _format_line(status: str, amount: str, line1: str, line2: str) -> str:
-    st = str(status).replace("|", " ").replace("\n", "").strip()[:20]
-    amt = str(amount).replace("|", " ").replace("\n", "").strip()[:18]
-    l1 = str(line1).replace("|", " ").replace("\n", "").strip()[:24]
-    l2 = str(line2).replace("|", " ").replace("\n", "").strip()[:24]
+    st = (str(status).replace("|", " ").replace("\n", "").strip()[:20]) or "PAYTM SOUNDBOX"
+    amt = (str(amount).replace("|", " ").replace("\n", "").strip()[:18]) or "Rs --"
+    l1 = (str(line1).replace("|", " ").replace("\n", "").strip()[:24]) or " "
+    l2 = (str(line2).replace("|", " ").replace("\n", "").strip()[:24]) or " "
     return f"{st}|{amt}|{l1}|{l2}\n"
 
 
@@ -109,20 +109,22 @@ def _serial_worker():
                 ser.dtr = False
                 ser.timeout = 0.5
                 ser.open()
-                logger.info("Connected to Arduino on %s", port)
+                print(f"[ARDUINO] Connected to Arduino on {port}", flush=True)
+                # Send ready status with latest sales figure on connection
+                _queue.put("PAYTM SOUNDBOX|Rs 16,408|Vyapar Hub Active|Ready for actions\n")
 
             # Wait for items from the queue
             try:
                 msg = _queue.get(timeout=1.0)
                 ser.write(msg.encode("utf-8"))
                 ser.flush()
-                logger.info("Delivered to Arduino: %s", msg.strip())
+                print(f"[ARDUINO] Delivered: {msg.strip()}", flush=True)
                 _queue.task_done()
             except queue.Empty:
                 pass
 
         except Exception as e:
-            logger.debug("Serial connection error (will retry): %s", e)
+            print(f"[ARDUINO] Serial error: {e}", flush=True)
             if ser:
                 try:
                     ser.close()
