@@ -37,8 +37,8 @@ class SpeakRequest(BaseModel):
 
 @router.post("/speak")
 def speak(body: SpeakRequest) -> dict:
-    from app.services.hardware import display_from_speech
-    display_from_speech(body.text)
+    from app.services.hardware import set_speaker_active
+    set_speaker_active(True, body.text)
     return speech.speak(body.text, body.language_code)
 
 
