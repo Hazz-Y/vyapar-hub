@@ -95,10 +95,9 @@ def execute(session: Session, pa: PendingAction, now: datetime, approved_by: str
     session.add(pa)
     session.commit()
     session.refresh(pa)
-    if soundbox_text:
-        announce(session, pa.merchant_id, "action", soundbox_text, now)
+    event_id = announce(session, pa.merchant_id, "action", soundbox_text, now).id if soundbox_text else None
     return {"action_id": pa.id, "kind": pa.kind, "status": pa.status, "approved_by": approved_by,
-            "confirmation_text": confirmation, "soundbox_text": soundbox_text}
+            "confirmation_text": confirmation, "soundbox_text": soundbox_text, "soundbox_event_id": event_id}
 
 
 # ---------------------------------------------------------------- handlers: return (confirmation, soundbox)

@@ -36,5 +36,5 @@ def record_inflow(session: Session, merchant_id: int, amount: int, now: datetime
         name = display_name(c.name)
         result["settled_udhaar"] = {"id": settled.id, "customer": name, "amount": settled.amount}
         result["soundbox_text"] = f"{announce}. {name} ka {settled.amount} rupaye ka udhaar band ho gaya"
-    announce_event(session, merchant_id, "payment", result["soundbox_text"], now)
+    result["soundbox_event_id"] = announce_event(session, merchant_id, "payment", result["soundbox_text"], now).id
     return result
