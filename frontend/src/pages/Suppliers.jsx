@@ -62,7 +62,7 @@ function PayableRow({ p, onPay, onReschedule }) {
 }
 
 export default function Suppliers() {
-  const { api, requestApproval, refresh } = useApp()
+  const { api, requestApproval } = useApp()
   const { data: payables, loading, error } = useLoad(() => api.payables('upcoming'))
   const { data: matching } = useLoad(() => api.matching())
   const [matchOpen, setMatchOpen] = useState(false)

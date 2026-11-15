@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink } from 'react-router'
 import { AppProvider, useApp } from './context/AppContext'
 import { createApi } from './api/client'
 import { ApprovalHost } from './components/ApprovalSheet'
+import DemoBar, { DEMO_MODE } from './components/DemoBar'
 import Soundbox from './components/Soundbox'
 import StatusBar from './components/StatusBar'
 import ToolTrace from './components/ToolTrace'
@@ -77,14 +78,17 @@ function Shell() {
       </div>
 
       {/* Desktop sidebar: Soundbox + Tool Trace */}
-      <aside className="ml-0 hidden w-72 shrink-0 space-y-4 lg:block">
-        <div className="rounded-2xl bg-slate-900 p-4">
+      <aside className={`${DEMO_MODE ? 'order-first flex w-full justify-center p-2 lg:order-none lg:p-0' : 'hidden'} shrink-0 lg:block lg:w-72 lg:space-y-4`}>
+        {DEMO_MODE && <DemoBar />}
+        <div className="hidden rounded-2xl bg-slate-900 p-4 lg:block">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             Paytm Soundbox
           </p>
           <Soundbox />
         </div>
-        <ToolTrace />
+        <div className="hidden lg:block">
+          <ToolTrace />
+        </div>
       </aside>
     </div>
   )

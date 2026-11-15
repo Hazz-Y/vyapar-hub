@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp, useLoad } from '../context/AppContext'
-import Card, { Loading, ErrorNote, Button } from '../components/Card'
+import { Button, ErrorNote, Loading } from '../components/Card'
 import MessagePreview from '../components/MessagePreview'
 import AssistantPanel from '../components/AssistantPanel'
 import { rupees, shortDate, STATUS_CHIP } from '../lib/format'
@@ -14,8 +14,6 @@ const UDHAAR_PHRASES = [
 const EMPTY_FORM = { customer_name: '', amount: '', phone: '', due_date: '' }
 
 function StatusChip({ status }) {
-  const today = new Date().toISOString().slice(0, 10)
-  // Determine effective status: if open but past due, treat as overdue
   const chip = STATUS_CHIP[status] || STATUS_CHIP.open
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${chip.cls}`}>

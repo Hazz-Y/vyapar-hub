@@ -1,138 +1,89 @@
 import { useState } from 'react'
 import {
-  ComposedChart, Area, Line, ReferenceLine, ReferenceArea,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceArea, ReferenceLine,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { rupees, rupeesShort, shortDate } from '../lib/format'
 
-function ChartTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null
-  const d = payload[0]?.payload || {}
+const SKY = '#00B9F1'
+const NAVY = '#002E6E'
+const CRITICAL = '#d03b3b'
+
+function ChartTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
   return (
-    <div className="rounded-xl bg-white p-3 shadow-lg ring-1 ring-slate-200 text-[12px]">
-      <p className="font-semibold text-navy mb-1">{label ? shortDate(label) : ''}</p>
-      <p className="text-slate-500">P10: <span className="text-navy font-medium">{rupees(d.p10)}</span></p>
-      <p className="text-slate-500">P50: <span className="text-[#00B9F1] font-medium">{rupees(d.p50)}</span></p>
-      <p className="text-slate-500">P90: <span className="text-navy font-medium">{rupees(d.p90)}</span></p>
-      {d.balance != null && (
-        <p className="text-slate-500 mt-1">Balance: <span className="font-medium">{rupees(d.balance)}</span></p>
-      )}
+    <div className="rounded-xl bg-white p-2.5 text-[12px] shadow-lg ring-1 ring-slate-200">
+      <p className="font-semibold text-navy">
+        {shortDate(d.date)} · {d.weekday}
+      </p>
+      <p className="text-slate-600">Likely: <b className="text-navy">{rupees(d.balance_p50)}</b></p>
+      <p className="text-slate-500">Range: {rupees(d.balance_p10)} – {rupees(d.balance_p90)}</p>
+      {d.payables?.map((p) => (
+        <p key={p.id} className="text-slate-500">Bill: {p.supplier} {rupees(p.amount)}</p>
+      ))}
+      {d.below_buffer && <p className="font-semibold text-[#d03b3b]">⚠ Buffer se neeche</p>}
     </div>
   )
 }
 
-export default function RadarChart({ data = [], flaggedDays = [], buffer = 0 }) {
-  const [tableOpen, setTableOpen] = useState(false)
-  const flagSet = new Set(flaggedDays.map((d) => d.date))
-  const chartData = data.map((d) => ({
-    ...d,
-    band: Math.max(0, d.p90 - d.p10),
-  }))
+// End-of-day balance forecast: p10–p90 range, p50 line, buffer line, shortfall days shaded.
+export default function RadarChart({ days = [], shortfalls = [], buffer = 0, height = 230 }) {
+  const [table, setTable] = useState(false)
+  const data = days.map((d) => ({ ...d, range: [d.balance_p10, d.balance_p90] }))
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={240}>
-        <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(v) => shortDate(v)}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            tickFormatter={(v) => rupeesShort(v)}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={false}
-            axisLine={false}
-            width={56}
-          />
-          <Tooltip content={<ChartTooltip />} />
-          <Legend
-            wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
-            formatter={(value) => <span className="text-slate-600">{value}</span>}
-          />
-
-          {/* P10–P90 band: stacked areas */}
-          <Area
-            stackId="cf"
-            dataKey="p10"
-            fill="transparent"
-            stroke="none"
-            name="P10 (base)"
-            legendType="none"
-          />
-          <Area
-            stackId="cf"
-            dataKey="band"
-            fill="rgba(0,185,241,0.15)"
-            stroke="none"
-            name="P10–P90 band"
-          />
-
-          <Line
-            dataKey="p50"
-            stroke="#00B9F1"
-            strokeWidth={2}
-            dot={false}
-            name="Forecast (p50)"
-            activeDot={{ r: 4, strokeWidth: 0 }}
-          />
-
-          {buffer > 0 && (
-            <ReferenceLine
-              y={buffer}
-              stroke="#d03b3b"
-              strokeDasharray="4 2"
-              strokeWidth={1.5}
-              label={{ value: 'Buffer', fill: '#d03b3b', fontSize: 10, position: 'insideTopLeft' }}
-            />
+      <ResponsiveContainer width="100%" height={height}>
+        <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="#e2e8f0" strokeWidth={0.5} vertical={false} />
+          <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} interval="preserveStartEnd" minTickGap={18} />
+          <YAxis tickFormatter={rupeesShort} tick={{ fontSize: 10, fill: '#64748b' }} tickLine={false} axisLine={false} width={48} />
+          <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} />
+          <Legend verticalAlign="top" height={24} iconSize={10} wrapperStyle={{ fontSize: 11, color: '#475569' }} />
+          {shortfalls.map((s) =>
+            s.date === s.last_day ? (
+              <ReferenceLine key={s.date} x={s.date} stroke={CRITICAL} strokeOpacity={0.35} strokeWidth={10} />
+            ) : (
+              <ReferenceArea key={s.date} x1={s.date} x2={s.last_day} fill={CRITICAL} fillOpacity={0.08} />
+            ),
           )}
-
-          {flaggedDays.map((fd) => (
-            <ReferenceArea
-              key={fd.date}
-              x1={fd.date}
-              x2={fd.date}
-              fill="rgba(208,59,59,0.1)"
-              ifOverflow="visible"
-            />
-          ))}
+          <Area dataKey="range" name="Range (p10–p90)" fill={SKY} fillOpacity={0.18} stroke="none" isAnimationActive={false} activeDot={false} />
+          <Line dataKey="balance_p50" name="Likely balance" stroke={NAVY} strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
+          <ReferenceLine
+            y={buffer}
+            stroke={CRITICAL}
+            strokeDasharray="4 3"
+            strokeWidth={1.5}
+            label={{ value: `Buffer ${rupees(buffer)}`, fill: CRITICAL, fontSize: 10, position: 'insideBottomLeft' }}
+          />
         </ComposedChart>
       </ResponsiveContainer>
 
-      <button
-        onClick={() => setTableOpen((o) => !o)}
-        className="mt-2 text-[11px] font-semibold text-sky-700 hover:underline"
-      >
-        {tableOpen ? 'Hide table' : 'Table view'}
+      <button onClick={() => setTable((t) => !t)} className="mt-1 text-[11px] font-semibold text-sky-700" aria-expanded={table}>
+        {table ? 'Chart only' : 'Table view'}
       </button>
-
-      {tableOpen && (
-        <div className="mt-2 overflow-x-auto rounded-xl bg-slate-50 ring-1 ring-slate-200">
+      {table && (
+        <div className="mt-2 max-h-64 overflow-auto rounded-xl ring-1 ring-slate-200">
           <table className="w-full text-[12px]">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500">
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium text-right">P10</th>
-                <th className="px-3 py-2 font-medium text-right">P50</th>
-                <th className="px-3 py-2 font-medium text-right">P90</th>
+            <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
+              <tr>
+                <th className="px-2 py-1.5 font-medium">Din</th>
+                <th className="px-2 py-1.5 text-right font-medium">Kam se kam</th>
+                <th className="px-2 py-1.5 text-right font-medium">Likely</th>
+                <th className="px-2 py-1.5 text-right font-medium">Bills</th>
               </tr>
             </thead>
             <tbody>
-              {data.map((d) => (
-                <tr
-                  key={d.date}
-                  className={`border-b border-slate-100 last:border-0 ${flagSet.has(d.date) ? 'bg-red-50' : ''}`}
-                >
-                  <td className="px-3 py-1.5 text-slate-700">
-                    {shortDate(d.date)}
-                    {flagSet.has(d.date) && <span className="ml-1 text-[#d03b3b]">⚠</span>}
+              {days.map((d) => (
+                <tr key={d.date} className={`border-t border-slate-100 ${d.below_buffer ? 'bg-red-50' : ''}`}>
+                  <td className="px-2 py-1.5 text-slate-700">
+                    {shortDate(d.date)} {d.weekday}
+                    {d.below_buffer && <span className="ml-1 text-[#d03b3b]" aria-label="below buffer">⚠</span>}
                   </td>
-                  <td className="px-3 py-1.5 text-right text-slate-600">{rupees(d.p10)}</td>
-                  <td className="px-3 py-1.5 text-right font-medium text-navy">{rupees(d.p50)}</td>
-                  <td className="px-3 py-1.5 text-right text-slate-600">{rupees(d.p90)}</td>
+                  <td className="px-2 py-1.5 text-right text-slate-600">{rupees(d.balance_p10)}</td>
+                  <td className="px-2 py-1.5 text-right font-medium text-navy">{rupees(d.balance_p50)}</td>
+                  <td className="px-2 py-1.5 text-right text-slate-600">{d.payables_total ? rupees(d.payables_total) : '—'}</td>
                 </tr>
               ))}
             </tbody>

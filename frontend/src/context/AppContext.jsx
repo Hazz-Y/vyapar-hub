@@ -82,9 +82,19 @@ export function AppProvider({ children, merchantId = 1, api: injectedApi, pollMs
   }, [])
   const closeApproval = useCallback((id) => setApprovalQueue((q) => q.filter((a) => a.id !== id)), [])
 
+  // After /demo/reset the event ids restart from 1, so the poller must forget what it has seen.
+  const resetSession = useCallback(() => {
+    lastEventId.current = null
+    seen.current = new Set()
+    setApprovalQueue([])
+    setTrace(null)
+    setSoundbox({ text: 'Vyapar Hub ready', playing: false })
+    refresh()
+  }, [refresh])
+
   const value = {
     api, status, version, refresh, trace, setTrace, soundbox, say,
-    approvalQueue, requestApproval, closeApproval, reloadStatus: loadStatus,
+    approvalQueue, requestApproval, closeApproval, reloadStatus: loadStatus, resetSession,
   }
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }
