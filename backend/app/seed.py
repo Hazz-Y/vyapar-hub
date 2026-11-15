@@ -260,9 +260,8 @@ def day_multiplier(p: Profile, d: date, demo: date) -> float:
 
 
 class Builder:
-    def __init__(self, demo: date, demo_customer_phone: str = ""):
+    def __init__(self, demo: date):
         self.demo = demo
-        self.demo_customer_phone = demo_customer_phone
         self.rows: dict[str, list[dict]] = {t: [] for t in (
             "merchant", "transaction", "supplier", "payable", "customer", "udhaar", "settings")}
         self.txn_id = 0
@@ -322,8 +321,6 @@ class Builder:
             self.customer_id += 1
             vpa = f"{name.lower().replace(' ', '.')}{int(rng.integers(10, 99))}@upi"
             phone = "+91" + str(int(rng.integers(7_000_000_000, 9_999_999_999)))
-            if p is RAMESH and i == 0 and self.demo_customer_phone:
-                phone = self.demo_customer_phone
             c = dict(id=self.customer_id, merchant_id=mid, name=name, phone=phone,
                      payer_hash=hash_payer(vpa), opted_in=bool(rng.random() < 0.6),
                      language=p.customer_language)
@@ -496,11 +493,11 @@ class Builder:
                 settled_txn_id=None, note="", reminded_at=None))
 
 
-def seed_all(engine: Engine, demo: date, demo_customer_phone: str = "") -> dict[str, int]:
+def seed_all(engine: Engine, demo: date) -> dict[str, int]:
     """Drop and rebuild every table with deterministic synthetic data."""
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
-    b = Builder(demo, demo_customer_phone)
+    b = Builder(demo)
     for mid, profile in enumerate(PROFILES, start=1):
         b.build_merchant(mid, profile)
     tables = {

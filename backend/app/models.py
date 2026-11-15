@@ -96,7 +96,7 @@ class PendingAction(SQLModel, table=True):
 class MessageLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     merchant_id: int = Field(foreign_key="merchant.id", index=True)
-    channel: str  # whatsapp / preview
+    channel: str  # preview (WhatsApp sending not enabled)
     to: str
     body: str
     status: str  # sent / preview / failed / template_fallback

@@ -1,3 +1,4 @@
+import copy
 import json
 from datetime import date
 
@@ -24,7 +25,7 @@ class FakeLLM:
         self.requests = []
 
     def respond(self, **kw):
-        self.requests.append(kw)
+        self.requests.append(copy.deepcopy(kw))  # snapshot: the runner keeps appending to `messages`
         return self.responses.pop(0)
 
 
@@ -73,13 +74,13 @@ def test_number_guard():
 
 def test_tool_schemas_are_objects():
     schemas = tool_schemas()
-    assert {s["name"] for s in schemas} == {
+    assert {s["function"]["name"] for s in schemas} == {
         "get_sales_summary", "get_cash_radar", "list_payables", "draft_supplier_payment",
         "draft_reschedule_payable", "log_udhaar", "list_udhaar", "draft_udhaar_reminder", "get_growth_insights",
         "draft_winback", "get_morning_briefing"}
     for s in schemas:
-        assert s["type"] == "function" and s["parameters"]["type"] == "object"
-    log = next(s for s in schemas if s["name"] == "log_udhaar")["parameters"]
+        assert s["type"] == "function" and s["function"]["parameters"]["type"] == "object"
+    log = next(s for s in schemas if s["function"]["name"] == "log_udhaar")["function"]["parameters"]
     assert set(log["required"]) == {"customer_name", "amount", "due"}
 
 
@@ -139,39 +140,60 @@ def test_fallback_help(ctx):
 # ---------------------------------------------------------------- mocked LLM tool loop
 
 
-def test_llm_tool_loop(ctx):
+def test_llm_tool_loop_message_format(ctx):
     llm = FakeLLM([
-        LLMResponse("r1", "", [call("log_udhaar", {"customer_name": "Sunita ji", "amount": 650, "due": "Friday"})]),
-        LLMResponse("r2", "₹650, Sunita ji, Friday (20 Nov) tak. Sahi hai?"),
+        LLMResponse("", [call("get_sales_summary", {})]),
+        LLMResponse("Kal ki bikri theek rahi."),
+    ])
+    r = run_agent(ctx, "kal kitni bikri hui?", llm=llm, history=[{"role": "user", "content": "namaste"},
+                                                                 {"role": "assistant", "content": "Namaste ji"}])
+    assert r["mode"] == "llm" and r["reply_text"] == "Kal ki bikri theek rahi."
+    first, second = llm.requests
+    assert first["messages"][0]["role"] == "system"
+    assert "Use ONLY numbers that appear in tool results" in first["messages"][0]["content"]
+    assert [m["role"] for m in first["messages"]] == ["system", "user", "assistant", "user"]
+    assert first["messages"][-1] == {"role": "user", "content": "kal kitni bikri hui?"}
+    assistant, tool_msg = second["messages"][-2:]
+    assert assistant["tool_calls"][0]["id"] == "c1"
+    assert assistant["tool_calls"][0]["function"]["name"] == "get_sales_summary"
+    assert tool_msg["role"] == "tool" and tool_msg["tool_call_id"] == "c1"
+    assert "speak" in json.loads(tool_msg["content"])
+
+
+def test_llm_draft_turn_replies_with_readback_in_one_call(ctx):
+    llm = FakeLLM([
+        LLMResponse("", [call("log_udhaar", {"customer_name": "Sunita ji", "amount": 650, "due": "Friday"})]),
     ])
     r = run_agent(ctx, "Sunita ji ne 650 ka udhaar liya, Friday tak denge", llm=llm)
-    assert r["mode"] == "grok"
+    assert len(llm.requests) == 1  # no second LLM call: the read-back is the reply
     assert r["reply_text"] == "₹650, Sunita ji, Friday (20 Nov) tak. Sahi hai?"
     assert [t["tool"] for t in r["tool_trace"]] == ["log_udhaar"]
     assert r["pending_actions"][0]["status"] == "pending"
-    first, second = llm.requests
-    assert first["input"][-1] == {"role": "user", "content": "Sunita ji ne 650 ka udhaar liya, Friday tak denge"}
-    assert "Use ONLY numbers that appear in tool results" in first["instructions"]
-    assert second["previous_response_id"] == "r1"
-    out = second["input"][0]
-    assert out["type"] == "function_call_output" and out["call_id"] == "c1"
-    assert json.loads(out["output"])["pending_action_id"] == r["pending_actions"][0]["id"]
+
+
+def test_llm_failed_draft_goes_back_to_model(ctx):
+    llm = FakeLLM([
+        LLMResponse("", [call("draft_supplier_payment", {"supplier_name": "Bilkul Anjaan", "amount": 100})]),
+        LLMResponse("Yeh supplier nahi mila. Kaun sa supplier?"),
+    ])
+    r = run_agent(ctx, "Bilkul Anjaan ko 100 bhejo", llm=llm)
+    assert len(llm.requests) == 2 and r["pending_actions"] == []
 
 
 def test_llm_tool_call_limit(ctx):
     many = [call("get_sales_summary", {}, f"c{i}") for i in range(3)]
-    llm = FakeLLM([LLMResponse("r1", "", many), LLMResponse("r2", "", many), LLMResponse("r3", "Theek hai.")])
+    llm = FakeLLM([LLMResponse("", many), LLMResponse("", many), LLMResponse("Theek hai.")])
     r = run_agent(ctx, "sab batao", llm=llm)
     real = [t for t in r["tool_trace"] if t["tool"] == "get_sales_summary"]
     assert len(real) == MAX_TOOL_CALLS
     assert llm.requests[-1]["tool_choice"] == "none"
-    limited = [json.loads(o["output"]) for o in llm.requests[-1]["input"]]
+    limited = [json.loads(m["content"]) for m in llm.requests[-1]["messages"] if m["role"] == "tool"]
     assert any(o.get("error") == "tool_call_limit" for o in limited)
 
 
 def test_llm_invented_number_is_replaced(ctx):
-    llm = FakeLLM([LLMResponse("r1", "", [call("get_sales_summary", {})]),
-                   LLMResponse("r2", "Kal ₹99,999 ki bikri hui!")])
+    llm = FakeLLM([LLMResponse("", [call("get_sales_summary", {})]),
+                   LLMResponse("Kal ₹99,999 ki bikri hui!")])
     r = run_agent(ctx, "kal kitni bikri hui", llm=llm)
     assert "99,999" not in r["reply_text"]
     assert r["reply_text"] == r["tool_trace"][0]["result"]["speak"]
@@ -179,8 +201,8 @@ def test_llm_invented_number_is_replaced(ctx):
 
 
 def test_llm_bad_args_are_reported_back(ctx):
-    llm = FakeLLM([LLMResponse("r1", "", [call("draft_supplier_payment", {"supplier_name": "Sharma", "amount": -5})]),
-                   LLMResponse("r2", "Amount sahi nahi hai, phir se batayein.")])
+    llm = FakeLLM([LLMResponse("", [call("draft_supplier_payment", {"supplier_name": "Sharma", "amount": -5})]),
+                   LLMResponse("Amount sahi nahi hai, phir se batayein.")])
     r = run_agent(ctx, "Sharma ko bhejo", llm=llm)
     assert r["tool_trace"][0]["result"]["error"] == "ValidationError"
     assert r["pending_actions"] == []

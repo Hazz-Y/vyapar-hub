@@ -60,7 +60,8 @@ class Tool:
         for prop in params.get("properties", {}).values():
             prop.pop("title", None)
         params.setdefault("properties", {})
-        return {"type": "function", "name": self.name, "description": self.description, "parameters": params}
+        return {"type": "function",
+                "function": {"name": self.name, "description": self.description, "parameters": params}}
 
     def run(self, ctx: ToolContext, raw_args: dict) -> dict:
         args = self.input_model.model_validate(raw_args or {})
@@ -303,7 +304,7 @@ def draft_udhaar_reminder(ctx: ToolContext, a: DraftReminderIn) -> dict:
         return {"error": "no_open_udhaar", "speak": "Is grahak ka koi khula udhaar nahi hai."}
     u, c = row
     payload = reminder_payload(ctx, u, c)
-    readback = f"{payload['recipient']} ko {rupees(u.amount)} ka WhatsApp reminder UPI link ke saath bhejna hai. Sahi hai?"
+    readback = f"{payload['recipient']} ko {rupees(u.amount)} ka reminder UPI link ke saath bhejna hai. Sahi hai?"
     action = ctx.draft("udhaar", "send_reminder", payload, readback)
     return {"speak": readback, "pending_action_id": action["id"], "needs_approval": True,
             "message_preview": payload["body"]}
@@ -327,7 +328,7 @@ def draft_winback(ctx: ToolContext, a: DraftWinbackIn) -> dict:
         messages.append({"customer_id": c.id, "name": display_name(c.name), "to": c.phone,
                          "body": winback_text(c.language, c.name.split()[0], ctx.merchant.name, a.discount_pct)})
     n, skipped = len(messages), len(lapsed) - len(consented)
-    readback = f"{n} purane regular grahakon ko {a.discount_pct}% chhoot ka WhatsApp offer bhejna hai. Sahi hai?"
+    readback = f"{n} purane regular grahakon ko {a.discount_pct}% chhoot ka offer message bhejna hai. Sahi hai?"
     action = ctx.draft("growth", "send_winback", {
         "customer_ids": [m["customer_id"] for m in messages], "messages": messages, "count": n,
         "recipient": f"{n} grahak", "discount_pct": a.discount_pct, "skipped_not_opted_in": skipped}, readback)
@@ -348,11 +349,11 @@ TOOLS: dict[str, Tool] = {t.name: t for t in [
     Tool("log_udhaar", "Draft an udhaar (customer credit) entry with read-back. Pass the due date as spoken.",
          LogUdhaarIn, log_udhaar),
     Tool("list_udhaar", "Open udhaar entries and totals.", ListUdhaarIn, list_udhaar_tool),
-    Tool("draft_udhaar_reminder", "Draft a WhatsApp reminder with a UPI pay link for an open udhaar.",
+    Tool("draft_udhaar_reminder", "Draft a reminder message with a UPI pay link for an open udhaar.",
          DraftReminderIn, draft_udhaar_reminder),
     Tool("get_growth_insights", "Peak hours, slow days, festival vs last year, lapsed regular customers.",
          NoArgs, get_growth_insights),
-    Tool("draft_winback", "Draft a win-back WhatsApp offer to lapsed regulars who opted in.",
+    Tool("draft_winback", "Draft a win-back offer message to lapsed regulars who opted in.",
          DraftWinbackIn, draft_winback),
     Tool("get_morning_briefing", "Subah ki Report: yesterday's sales, payments due, udhaar to collect, one tip.",
          NoArgs, get_morning_briefing),

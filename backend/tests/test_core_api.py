@@ -12,7 +12,7 @@ DEMO = date(2026, 11, 15)
 
 def test_status_reports_offline_modes(client):
     r = client.get("/status").json()
-    assert r["llm"] == "fallback" and r["voice"] == "browser" and r["whatsapp"] == "preview"
+    assert r["llm"] == "fallback" and r["voice"] == "browser" and r["messaging"] == "preview"
     assert r["synthetic_data"] is True and r["demo_date"] == DEMO.isoformat()
     assert r["now"].startswith("2026-11-15T08:3")
 

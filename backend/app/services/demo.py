@@ -19,7 +19,7 @@ def demo_date() -> date:
 def reset_demo() -> dict:
     s = get_settings()
     d = demo_date()
-    counts = seed_all(get_engine(), d, s.demo_customer_phone)
+    counts = seed_all(get_engine(), d)
     start = datetime.fromisoformat(s.demo_now) if s.demo_now else datetime.combine(d, DEMO_START_TIME)
     clock.set_now(start)
     clock.set_demo_start(d)

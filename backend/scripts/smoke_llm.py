@@ -1,6 +1,6 @@
-"""Live smoke test for Grok tool calling. Usage: python scripts/smoke_xai.py
+"""Live smoke test for LLM tool calling (Groq or xAI). Usage: python scripts/smoke_llm.py
 
-Needs XAI_API_KEY in backend/.env. Runs against a throwaway seeded database, so the real
+Needs GROQ_API_KEY (or XAI_API_KEY) in backend/.env. Runs against a throwaway seeded database, so the real
 demo DB is untouched.
 """
 import os
@@ -15,7 +15,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{Path(tempfile.mkdtemp()).as_posix()}/s
 from sqlmodel import Session  # noqa: E402
 
 from app import clock  # noqa: E402
-from app.agent.runner import GrokClient, run_agent  # noqa: E402
+from app.agent.runner import client_from_settings, run_agent  # noqa: E402
 from app.agent.tools import ToolContext  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.db import get_engine  # noqa: E402
@@ -30,24 +30,23 @@ PHRASES = [
 
 def main() -> int:
     s = get_settings()
-    if not s.xai_api_key:
-        print("XAI_API_KEY is not set in backend/.env - add it to run this smoke test.")
+    if s.llm_mode == "fallback":
+        print("No GROQ_API_KEY or XAI_API_KEY in backend/.env - add one to run this smoke test.")
         return 1
     import openai
 
-    print(f"openai SDK {openai.__version__}, model {s.xai_model}")
+    print(f"openai SDK {openai.__version__}, provider {s.llm_mode}, model {s.llm_model}")
     reset_demo()
-    llm = GrokClient(s.xai_api_key, s.xai_model)
     ok = True
     for text, expected_kind in PHRASES:
         with Session(get_engine()) as session:
             ctx = ToolContext(session=session, merchant=session.get(Merchant, 1), now=clock.now(),
                               today=clock.today(), demo_start=clock.demo_start())
             t0 = time.perf_counter()
-            r = run_agent(ctx, text, llm=llm)
+            r = run_agent(ctx, text)
             dt = time.perf_counter() - t0
         kinds = [a["kind"] for a in r["pending_actions"]]
-        passed = r["mode"] == "grok" and expected_kind in kinds
+        passed = r["mode"] == s.llm_mode and expected_kind in kinds
         ok &= passed
         print(f"\n[{'PASS' if passed else 'FAIL'}] {text}  ({dt:.1f}s, mode={r['mode']})")
         for t in r["tool_trace"]:

@@ -9,8 +9,7 @@ os.environ["DEMO_DATE"] = "2026-11-15"
 os.environ["DEMO_NOW"] = ""
 os.environ["ENABLE_SCHEDULER"] = "false"
 # Force offline fallbacks in tests regardless of backend/.env.
-for key in ("XAI_API_KEY", "SARVAM_API_KEY", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID",
-            "DEMO_CUSTOMER_PHONE"):
+for key in ("GROQ_API_KEY", "XAI_API_KEY", "SARVAM_API_KEY"):
     os.environ[key] = ""
 
 import shutil  # noqa: E402

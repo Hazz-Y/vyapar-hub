@@ -15,8 +15,7 @@ router = APIRouter(tags=["core"])
 @router.get("/status")
 def status() -> dict:
     s = get_settings()
-    return {"llm": s.llm_mode, "voice": s.voice_mode, "whatsapp": s.whatsapp_mode,
-            "llm_model": s.xai_model if s.llm_mode == "grok" else "rule-based parser",
+    return {"llm": s.llm_mode, "llm_model": s.llm_model, "voice": s.voice_mode, "messaging": s.messaging_mode,
             "now": clock.now().isoformat(), "demo_date": clock.demo_start().isoformat(),
             "synthetic_data": True}
 

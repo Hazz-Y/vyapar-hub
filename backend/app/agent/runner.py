@@ -1,4 +1,6 @@
-"""Agent loop: Grok tool calling (xAI Responses API) with a rule-based fallback parser.
+"""Agent loop: LLM tool calling (Groq, or xAI Grok) with a rule-based fallback parser.
+
+Both providers speak the OpenAI chat-completions protocol, so one client covers them.
 
 Safety nets:
 * max MAX_TOOL_CALLS tool calls per turn;
@@ -21,6 +23,8 @@ from app.services.actions import action_out
 from app.services.customers import DEVANAGARI_NAMES
 
 MAX_TOOL_CALLS = 5
+DRAFT_TOOLS = {"draft_supplier_payment", "draft_reschedule_payable", "log_udhaar", "draft_udhaar_reminder",
+               "draft_winback"}
 
 
 # ---------------------------------------------------------------- LLM client
@@ -35,33 +39,39 @@ class ToolCall:
 
 @dataclass
 class LLMResponse:
-    id: str
     text: str
     calls: list[ToolCall] = field(default_factory=list)
 
 
 class LLM(Protocol):
-    def respond(self, *, instructions: str, input: list[dict], previous_response_id: str | None,
-                tools: list[dict], tool_choice: str) -> LLMResponse: ...
+    def respond(self, *, messages: list[dict], tools: list[dict], tool_choice: str) -> LLMResponse: ...
 
 
-class GrokClient:
-    """xAI Grok via the OpenAI SDK's Responses API (https://api.x.ai/v1)."""
+class ChatClient:
+    """OpenAI-compatible chat completions (Groq: api.groq.com/openai/v1, xAI: api.x.ai/v1)."""
 
-    def __init__(self, api_key: str, model: str, timeout: float = 25.0):
+    def __init__(self, api_key: str, base_url: str, model: str, timeout: float = 25.0):
         from openai import OpenAI
 
-        self.client = OpenAI(api_key=api_key, base_url="https://api.x.ai/v1", timeout=timeout, max_retries=1)
+        # No SDK retries: on a rate limit (free tier: 8k tokens/min) the rule-based parser answers at once
+        # instead of the demo stalling on a retry-after wait.
+        self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
         self.model = model
 
-    def respond(self, *, instructions, input, previous_response_id, tools, tool_choice) -> LLMResponse:
-        kwargs: dict[str, Any] = dict(model=self.model, instructions=instructions, input=input, tools=tools,
-                                      tool_choice=tool_choice, temperature=0.2)
-        if previous_response_id:
-            kwargs["previous_response_id"] = previous_response_id
-        resp = self.client.responses.create(**kwargs)
-        calls = [ToolCall(o.call_id, o.name, o.arguments) for o in resp.output if o.type == "function_call"]
-        return LLMResponse(resp.id, resp.output_text or "", calls)
+    def respond(self, *, messages, tools, tool_choice) -> LLMResponse:
+        kwargs: dict[str, Any] = dict(model=self.model, messages=messages, tools=tools, tool_choice=tool_choice,
+                                      temperature=0.2)
+        resp = self.client.chat.completions.create(**kwargs)
+        msg = resp.choices[0].message
+        calls = [ToolCall(tc.id, tc.function.name, tc.function.arguments or "{}") for tc in (msg.tool_calls or [])]
+        return LLMResponse(msg.content or "", calls)
+
+
+def client_from_settings() -> ChatClient | None:
+    s = get_settings()
+    if s.llm_mode == "fallback":
+        return None
+    return ChatClient(s.llm_api_key, s.llm_base_url, s.llm_model)
 
 
 # ---------------------------------------------------------------- number guard
@@ -214,17 +224,20 @@ def run_fallback(ctx: ToolContext, message: str, trace: list) -> str:
     return _spoken_from_trace(trace)
 
 
-def run_llm(ctx: ToolContext, llm: LLM, message: str, history: list[dict], language: str, trace: list) -> str:
-    instructions = system_prompt(ctx.merchant, ctx.today, language)
+def run_llm(ctx: ToolContext, llm: LLM, message: str, history: list[dict], language: str, trace: list,
+            source: str = "llm") -> str:
     tools = tool_schemas()
-    items: list[dict] = [{"role": h["role"], "content": h["content"]} for h in history[-10:]
-                         if h.get("role") in ("user", "assistant") and h.get("content")]
-    items.append({"role": "user", "content": message})
-    resp = llm.respond(instructions=instructions, input=items, previous_response_id=None, tools=tools,
-                       tool_choice="auto")
+    messages: list[dict] = [{"role": "system", "content": system_prompt(ctx.merchant, ctx.today, language)}]
+    messages += [{"role": h["role"], "content": h["content"]} for h in history[-10:]
+                 if h.get("role") in ("user", "assistant") and h.get("content")]
+    messages.append({"role": "user", "content": message})
+    resp = llm.respond(messages=messages, tools=tools, tool_choice="auto")
     calls_made = 0
     while resp.calls:
-        outputs = []
+        messages.append({"role": "assistant", "content": resp.text or None, "tool_calls": [
+            {"id": c.call_id, "type": "function", "function": {"name": c.name, "arguments": c.arguments}}
+            for c in resp.calls]})
+        step: list[tuple[str, dict]] = []
         for call in resp.calls:
             if calls_made >= MAX_TOOL_CALLS:
                 result = {"error": "tool_call_limit", "detail": f"max {MAX_TOOL_CALLS} tool calls per turn"}
@@ -233,13 +246,16 @@ def run_llm(ctx: ToolContext, llm: LLM, message: str, history: list[dict], langu
                     args = json.loads(call.arguments or "{}")
                 except json.JSONDecodeError:
                     args = {}
-                result = _run_tool(ctx, call.name, args, "grok", trace)
+                result = _run_tool(ctx, call.name, args, source, trace)
                 calls_made += 1
-            outputs.append({"type": "function_call_output", "call_id": call.call_id,
-                            "output": json.dumps(result, ensure_ascii=False, default=str)})
+            step.append((call.name, result))
+            messages.append({"role": "tool", "tool_call_id": call.call_id,
+                             "content": json.dumps(result, ensure_ascii=False, default=str)})
+        if all(name in DRAFT_TOOLS and "pending_action_id" in result for name, result in step):
+            # Pure action turn: the read-back *is* the reply. Skips a second LLM call (latency + tokens).
+            return " ".join(result["speak"] for _, result in step)
         choice = "none" if calls_made >= MAX_TOOL_CALLS else "auto"
-        resp = llm.respond(instructions=instructions, input=outputs, previous_response_id=resp.id, tools=tools,
-                           tool_choice=choice)
+        resp = llm.respond(messages=messages, tools=tools, tool_choice=choice)
     return resp.text.strip()
 
 
@@ -250,17 +266,18 @@ def run_agent(ctx: ToolContext, message: str, history: list[dict] | None = None,
     language = row.language if row else ctx.merchant.language
     trace: list[dict] = []
     mode = "fallback"
-    if llm is None and settings.llm_mode == "grok":
-        llm = GrokClient(settings.xai_api_key, settings.xai_model)
+    llm_name = "llm" if llm is not None else settings.llm_mode
+    if llm is None:
+        llm = client_from_settings()
     reply = ""
     if llm is not None:
         try:
-            reply = run_llm(ctx, llm, message, history, language, trace)
-            mode = "grok"
+            reply = run_llm(ctx, llm, message, history, language, trace, source=llm_name)
+            mode = llm_name
         except Exception as e:
             trace.append({"step": len(trace) + 1, "tool": "llm_error", "args": {},
                           "result": {"error": type(e).__name__, "detail": str(e)[:300]}, "ms": 0,
-                          "source": "grok"})
+                          "source": llm_name})
             reply = ""
     if mode == "fallback":
         reply = _spoken_from_trace(trace) if ctx.actions else run_fallback(ctx, message, trace)
