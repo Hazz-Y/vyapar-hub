@@ -15,3 +15,4 @@ sarvamai==0.1.46
 httpx==0.28.1
 python-multipart==0.0.32
 pytest==9.2.0
+pyserial>=3.5

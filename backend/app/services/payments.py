@@ -7,6 +7,7 @@ from sqlmodel import Session
 
 from app.models import Customer, Transaction
 from app.services.customers import display_name
+from app.services.hardware import send_to_display
 from app.services.messaging import announce as announce_event
 from app.services.udhaar import settle_on_inflow
 
@@ -37,4 +38,5 @@ def record_inflow(session: Session, merchant_id: int, amount: int, now: datetime
         result["settled_udhaar"] = {"id": settled.id, "customer": name, "amount": settled.amount}
         result["soundbox_text"] = f"{announce}. {name} ka {settled.amount} rupaye ka udhaar band ho gaya"
     result["soundbox_event_id"] = announce_event(session, merchant_id, "payment", result["soundbox_text"], now).id
+    send_to_display(amount, customer.name if customer else (payer_name or "CUSTOMER"), txn.id)
     return result

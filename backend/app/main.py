@@ -23,13 +23,17 @@ async def lifespan(_app: FastAPI):
     if get_settings().enable_scheduler:  # background jobs (off in tests)
         from app import scheduler
         from app.services.demo import warm_up
+        from app.services.hardware import start_hardware_service
 
         threading.Thread(target=warm_up, name="warm-up", daemon=True).start()
+        start_hardware_service()
         scheduler.start()
     yield
     if get_settings().enable_scheduler:
         from app import scheduler
+        from app.services.hardware import stop_hardware_service
 
+        stop_hardware_service()
         scheduler.stop()
 
 
